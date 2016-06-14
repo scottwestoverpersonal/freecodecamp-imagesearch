@@ -17,7 +17,17 @@ app.get('/', function(req, res) {
 });
 
 app.get('/latest', function(req, res) {
-  res.render('pages/index');
+  mongodb.MongoClient.connect(uri, function(err, db) {
+    if(err){
+      console.log(err);
+    }
+    else {
+    findSearches(db, function(searches) {
+        res.json(searches);
+        db.close();
+    });
+    }
+  });
 });
 
 app.get('/search', function(req, res) {
@@ -33,13 +43,22 @@ app.get('/search', function(req, res) {
     var options = {
       url: 'https://api.imgur.com/3/gallery/search/?q_any='+terms+'&page='+pageNum,
       headers: {
-        'Authorization': 'Client-ID d0f288d1e1c3f22',
-        'Content-Type': 'application/json'
+        'Authorization': 'Client-ID d0f288d1e1c3f22'
       }
     };
     request(options, function (error, response, body) {
       if (!error && response.statusCode == 200) {
-        res.json(body);
+          mongodb.MongoClient.connect(uri, function(err, db) {
+          if(err){
+            console.log(err);
+          }
+          else {
+            insertDocument(db, terms, function() {
+                db.close();
+                 res.json(JSON.parse(body));
+            });
+          }
+        });
       }
       else {
          res.json(error);
@@ -51,3 +70,35 @@ app.get('/search', function(req, res) {
 app.listen(app.get('port'), function() {
   console.log('Node app is running on port', app.get('port'));
 });
+
+
+var insertDocument = function(db, terms, callback) {
+   db.collection('searches').insertOne( {
+      "name" : terms,
+      "date" : Date()
+   }, function(err, result) {
+      if(err){
+      console.log(err);
+    }
+    else {
+    console.log("Inserted a document into the searches collection.");
+    }
+    callback();
+  });
+};
+
+var findSearches = function(db, callback) {
+  var searches = [];
+   var cursor =db.collection('searches').find( );
+   cursor.each(function(err, doc) {
+      if(err){
+      console.log(err);
+    }
+    else {
+      if (doc != null) {
+         searches.push(doc.name);
+      } else {
+         callback(searches);
+      }}
+   });
+};
