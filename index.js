@@ -96,7 +96,7 @@ var findSearches = function(db, callback) {
     }
     else {
       if (doc != null) {
-         searches.push(doc.name);
+         searches.push(doc);
       } else {
          callback(searches);
       }}
